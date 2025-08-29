@@ -70,6 +70,12 @@
             <label for="phone">Phone Number</label>
             <input id="phone" placeholder="e.g., +91 98765 43210" />
           </div>
+          <!-- NEW: Email field just below phone (same styling/colors) -->
+          <div>
+            <label for="email">Email (optional)</label>
+            <input id="email" placeholder="e.g., riya@example.com or 0" />
+          </div>
+
           <div class="row3">
             <div>
               <label for="day">Date (DD)</label>
@@ -93,7 +99,7 @@
               <input id="age" readonly />
             </div>
             <div class="right">
-              <button id="saveBtn" class="btn equal">Save / Update</button>
+              <button id="saveBtn" class="btn equal">Save</button>
               <button id="resetBtn" class="btn equal">Reset</button>
               <span id="status" class="muted"></span>
             </div>
@@ -101,7 +107,7 @@
         </div>
       </section>
 
-      <!-- RIGHT: Quick Actions (layout unchanged) -->
+      <!-- RIGHT: Quick Actions -->
       <section class="card">
         <h2>📅 Quick Actions</h2>
         <div class="content">
@@ -160,7 +166,22 @@
     function trim(s){return (s||"").replace(/^\s+|\s+$/g,"");}
     function capWords(s){ s = trim(String(s).toLowerCase()); return s.split(" ").filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(" "); }
     function sanitizePhone(s){ const allowed = new Set(["+","-","(",")"," "]); let out=""; for(const ch of String(s||"")){ if((ch>="0"&&ch<="9")||allowed.has(ch)) out+=ch; } return out; }
-    function validPhone(s){ let digits=0; for(const ch of s){ if(ch>='0'&&ch<='9') digits++; else if("+-() ".indexOf(ch)===-1) return false; } return digits>=7 && digits<=20; }
+    function validPhoneOrZero(s){ 
+      const t = String(s||'').trim();
+      if (t === '0') return true; // allow single 0
+      let digits=0; 
+      for(const ch of t){ 
+        if(ch>='0'&&ch<='9') digits++; 
+        else if("+-() ".indexOf(ch)===-1) return false; 
+      } 
+      return digits>=7 && digits<=20; 
+    }
+    function validEmailOrZero(s){
+      const t = String(s||'').trim();
+      if (t === '' || t === '0') return true; // empty or '0' allowed
+      // very light check (no error even if not perfect)
+      return t.includes('@') && t.includes('.');
+    }
     function calcAge(d, mStr, y){ if(!d||!mStr||!y) return ""; const m = parseMonthIndex(mStr); if(m<0) return ""; const today = new Date(); const birth = new Date(Number(y), m, Number(d)); if(isNaN(birth.getTime())) return ""; let age = today.getFullYear() - birth.getFullYear(); const md = today.getMonth() - m; const dd = today.getDate() - d; if(md<0 || (md===0 && dd<0)) age--; return age>=0? String(age):""; }
 
     function loadFromStorage(){ try{ return JSON.parse(localStorage.getItem('bdayMaster')||'[]'); }catch(e){ return []; } }
@@ -172,7 +193,7 @@
     let masterFileName = 'Birthday_Master.xlsx';
 
     // ---------- elements ----------
-    const fname=$('firstName'), lname=$('lastName'), phone=$('phone'),
+    const fname=$('firstName'), lname=$('lastName'), phone=$('phone'), email=$('email'),
           day=$('day'), monthSel=$('month'), year=$('year'),
           age=$('age'), status=$('status'),
           fileInput=$('fileInput');
@@ -182,13 +203,14 @@
     phone.addEventListener('input', ()=>{ phone.value = sanitizePhone(phone.value); });
     [day,monthSel,year].forEach(el=> el.addEventListener('input', ()=>{ age.value = calcAge(Number(day.value), monthSel.value, Number(year.value)); }));
 
-    function clearForm(){ editIndex=-1; [fname,lname,phone,day,year].forEach(el=> el.value=''); monthSel.value='Jan'; age.value=''; status.textContent=''; }
+    function clearForm(){ editIndex=-1; [fname,lname,phone,email,day,year].forEach(el=> el.value=''); monthSel.value='Jan'; age.value=''; status.textContent=''; }
 
     function validate(){
       const errors=[];
       if(!trim(fname.value)) errors.push('Name');
       if(!trim(lname.value)) errors.push('Surname');
-      if(!validPhone(phone.value)) errors.push('Phone');
+      if(!validPhoneOrZero(phone.value)) errors.push('Phone');
+      if(!validEmailOrZero(email.value)) errors.push('Email');
       const d=Number(day.value); if(!(d>=1&&d<=31)) errors.push('Date');
       const y=Number(year.value); if(!(y>=1900&&y<=2100)) errors.push('Year');
       return errors;
@@ -209,7 +231,7 @@
       $('todayTable').innerHTML = `<table><thead><tr><th>Name</th><th>Surname</th><th>Phone</th><th>DOB</th><th>Age</th></tr></thead><tbody>${rows || '<tr><td colspan="5">—</td></tr>'}</tbody></table>`;
     }
 
-    // ---------- Add / Update ----------
+    // ---------- Save ----------
     $('saveBtn').addEventListener('click', ()=>{
       const errs = validate();
       if(errs.length){ status.textContent = '⚠️ Check: '+errs.join(', '); status.className='err'; return; }
@@ -217,6 +239,7 @@
         Name: capWords(fname.value),
         Surname: capWords(lname.value),
         Phone: trim(phone.value),
+        Email: trim(email.value),
         Day: String(Number(day.value)),
         Month: monthSel.value,
         Year: String(Number(year.value))
@@ -242,10 +265,11 @@
           Name: capWords(r.Name||''),
           Surname: capWords(r.Surname||''),
           Phone: String(r.Phone||''),
+          Email: String(r.Email||''),
           Day: String(r.Day||''),
           Month: String(r.Month||''),
           Year: String(r.Year||'')
-        })).filter(r=> r.Name||r.Surname||r.Phone);
+        })).filter(r=> r.Name||r.Surname||r.Phone||r.Email);
         saveToStorage(data);
         clearForm();
         renderToday();
@@ -258,13 +282,16 @@
     // ---------- Save Birthday File (xlsx) ----------
     $('exportAllBtn').addEventListener('click', ()=>{
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(data, {header:['Name','Surname','Phone','Day','Month','Year']});
+      const ws = XLSX.utils.json_to_sheet(data, {header:['Name','Surname','Phone','Email','Day','Month','Year']});
 
-      // Force phone column as text
+      // Force Phone & Email columns as text
       const range = XLSX.utils.decode_range(ws['!ref']);
       for(let R=range.s.r+1; R<=range.e.r; ++R){
-        const addr = XLSX.utils.encode_cell({r:R,c:2});
-        if(ws[addr]) ws[addr].t = 's';
+        // c:0 Name, 1 Surname, 2 Phone, 3 Email, 4 Day, 5 Month, 6 Year
+        const phoneCell = XLSX.utils.encode_cell({r:R,c:2});
+        const emailCell = XLSX.utils.encode_cell({r:R,c:3});
+        if(ws[phoneCell]) ws[phoneCell].t = 's';
+        if(ws[emailCell]) ws[emailCell].t = 's';
       }
       XLSX.utils.book_append_sheet(wb, ws, 'Master');
 
@@ -283,7 +310,7 @@
     function exportTodayPDF(){
       const list = getTodaysList();
       const t = new Date();
-      const jsPDFNS = window.jspdf; // UMD exposes window.jspdf.jsPDF
+      const jsPDFNS = window.jspdf;
       if(!jsPDFNS || !jsPDFNS.jsPDF){
         alert('PDF library failed to load. Please check your internet connection.');
         return;
