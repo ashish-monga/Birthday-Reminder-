@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Birthday Reminders — Blue Theme</title>
+  <style>
+    :root{
+      --accent:#60a5fa; --bg:#0b1220; --card:#0f172a; --text:#e2e8f0; --muted:#94a3b8;
+      --ok:#16a34a; --warn:#eab308; --err:#dc2626; --line:#1e293b; --panel:#0b1220;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{padding:18px 20px;background:#0f172a;border-bottom:1px solid var(--line)}
+    h1{margin:0;font-size:20px}
+    main{max-width:1100px;margin:20px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+    .card h2{font-size:16px;margin:0;padding:14px 16px;border-bottom:1px solid var(--line)}
+    .card .content{padding:14px 16px}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:var(--panel);color:var(--text)}
+    input:focus,select:focus{border-color:#9ecbff;box-shadow:0 0 0 2px rgba(77,179,255,.2)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+    /* Quick Actions: two equal buttons + one wide below (layout unchanged) */
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    .btn{border:1px solid var(--line);border-radius:10px;font-weight:600;cursor:pointer;color:#0b1220;background:#93c5fd;text-align:center}
+    .btn:hover{filter:brightness(0.95)}
+    .btn.equal{padding:12px 14px}
+    .btn.wide{grid-column:1 / -1;padding:8px 14px} /* wide & slightly shorter */
+
+    .right{display:flex;gap:8px;align-items:center}
+    .muted{color:var(--muted);font-size:12px}
+    .ok{color:var(--ok)}.err{color:var(--err)}.warn{color:var(--warn)}
+    table{width:100%;border-collapse:collapse}
+    th,td{font-size:13px;text-align:left;padding:10px;border-bottom:1px solid var(--line)}
+    th{background:#1e293b;color:#c9d1d9;position:sticky;top:0;z-index:1}
+    tr:hover{background:#0f172a}
+    .note{font-size:12px;color:var(--muted);margin-top:8px}
+    #todayBox{margin-top:12px;background:#0b1620;border:1px solid var(--line);border-radius:12px;padding:12px}
+    .infobox{margin-top:10px;background:#0b1624;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;color:var(--text)}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎂 Birthday Reminders</h1>
+    <div class="muted">Blue theme • Add / edit entries, compute ages, load/save Excel • The bottom section shows <strong>today's birthdays</strong>.</div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <!-- LEFT: Add/Edit -->
+      <section class="card">
+        <h2>➕ Add / Edit</h2>
+        <div class="content">
+          <div class="row">
+            <div>
+              <label for="firstName">Name</label>
+              <input id="firstName" placeholder="e.g., Riya" />
+            </div>
+            <div>
+              <label for="lastName">Surname</label>
+              <input id="lastName" placeholder="e.g., Sharma" />
+            </div>
+          </div>
+          <div>
+            <label for="phone">Phone Number</label>
+            <input id="phone" placeholder="e.g., +91 98765 43210" />
+          </div>
+          <div class="row3">
+            <div>
+              <label for="day">Date (DD)</label>
+              <input id="day" type="number" min="1" max="31" placeholder="DD" />
+            </div>
+            <div>
+              <label for="month">Month</label>
+              <select id="month">
+                <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>May</option><option>Jun</option>
+                <option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+              </select>
+            </div>
+            <div>
+              <label for="year">Year (YYYY)</label>
+              <input id="year" type="number" min="1900" max="2100" placeholder="YYYY" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Age (auto)</label>
+              <input id="age" readonly />
+            </div>
+            <div class="right">
+              <button id="saveBtn" class="btn equal">Save / Update</button>
+              <button id="resetBtn" class="btn equal">Reset</button>
+              <span id="status" class="muted"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Quick Actions (layout unchanged) -->
+      <section class="card">
+        <h2>📅 Quick Actions</h2>
+        <div class="content">
+          <div class="actions">
+            <button id="loadBtn" class="btn equal">Open Birthday File</button>
+            <button id="exportAllBtn" class="btn equal">Save Birthday File</button>
+            <button id="exportTodayBtn" class="btn wide">Send</button>
+          </div>
+          <div id="summary" class="muted"></div>
+          <input id="fileInput" type="file" accept=".xlsx,.xls" style="display:none" />
+          <div class="infobox">
+            💡 <strong>Why wishing birthdays matters:</strong> remembering and reaching out on someone’s special day strengthens trust,
+            increases positive feelings, and opens the door for warm conversations. Teams that acknowledge birthdays report higher
+            engagement; families and friends who do it consistently feel more connected. Even a short wish can turn an ordinary day
+            into a meaningful moment — tiny effort, big goodwill.
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- BOTTOM: Today’s Birthdays -->
+    <section class="card" style="margin-top:16px">
+      <h2>🎈 Today’s Birthdays</h2>
+      <div class="content">
+        <div id="todayBox">
+          <div id="todayCount" class="note"></div>
+          <div id="todayTable"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- libs: Excel + PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    // ---------- helpers ----------
+    const $ = id => document.getElementById(id);
+
+    // Month display (UI) + parser (handles Jan/January/9/09)
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    function parseMonthIndex(val){
+      if(val===undefined||val===null) return -1;
+      const s = String(val).trim();
+      if(/^\d+$/.test(s)){ const n = Number(s); if(n>=1 && n<=12) return n-1; }
+      const map = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,sept:8,oct:9,nov:10,dec:11,
+        january:0,february:1,march:2,april:3,june:5,july:6,august:7,september:8,october:9,november:10,december:11};
+      const lower = s.toLowerCase();
+      if(lower in map) return map[lower];
+      const abbr = lower.slice(0,3);
+      return map[abbr] ?? -1;
+    }
+
+    function trim(s){return (s||"").replace(/^\s+|\s+$/g,"");}
+    function capWords(s){ s = trim(String(s).toLowerCase()); return s.split(" ").filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(" "); }
+    function sanitizePhone(s){ const allowed = new Set(["+","-","(",")"," "]); let out=""; for(const ch of String(s||"")){ if((ch>="0"&&ch<="9")||allowed.has(ch)) out+=ch; } return out; }
+    function validPhone(s){ let digits=0; for(const ch of s){ if(ch>='0'&&ch<='9') digits++; else if("+-() ".indexOf(ch)===-1) return false; } return digits>=7 && digits<=20; }
+    function calcAge(d, mStr, y){ if(!d||!mStr||!y) return ""; const m = parseMonthIndex(mStr); if(m<0) return ""; const today = new Date(); const birth = new Date(Number(y), m, Number(d)); if(isNaN(birth.getTime())) return ""; let age = today.getFullYear() - birth.getFullYear(); const md = today.getMonth() - m; const dd = today.getDate() - d; if(md<0 || (md===0 && dd<0)) age--; return age>=0? String(age):""; }
+
+    function loadFromStorage(){ try{ return JSON.parse(localStorage.getItem('bdayMaster')||'[]'); }catch(e){ return []; } }
+    function saveToStorage(rows){ localStorage.setItem('bdayMaster', JSON.stringify(rows)); }
+
+    // ---------- state ----------
+    let editIndex = -1;
+    let data = loadFromStorage();
+    let masterFileName = 'Birthday_Master.xlsx';
+
+    // ---------- elements ----------
+    const fname=$('firstName'), lname=$('lastName'), phone=$('phone'),
+          day=$('day'), monthSel=$('month'), year=$('year'),
+          age=$('age'), status=$('status'),
+          fileInput=$('fileInput');
+
+    // ---------- inputs wiring ----------
+    [fname,lname].forEach(el=> el.addEventListener('blur', ()=>{ el.value = capWords(el.value); }));
+    phone.addEventListener('input', ()=>{ phone.value = sanitizePhone(phone.value); });
+    [day,monthSel,year].forEach(el=> el.addEventListener('input', ()=>{ age.value = calcAge(Number(day.value), monthSel.value, Number(year.value)); }));
+
+    function clearForm(){ editIndex=-1; [fname,lname,phone,day,year].forEach(el=> el.value=''); monthSel.value='Jan'; age.value=''; status.textContent=''; }
+
+    function validate(){
+      const errors=[];
+      if(!trim(fname.value)) errors.push('Name');
+      if(!trim(lname.value)) errors.push('Surname');
+      if(!validPhone(phone.value)) errors.push('Phone');
+      const d=Number(day.value); if(!(d>=1&&d<=31)) errors.push('Date');
+      const y=Number(year.value); if(!(y>=1900&&y<=2100)) errors.push('Year');
+      return errors;
+    }
+
+    function getTodaysList(){
+      const t = new Date(); const d = t.getDate(); const m = t.getMonth();
+      return data.filter(r=> Number(r.Day)==d && parseMonthIndex(r.Month)==m);
+    }
+
+    function renderToday(){
+      const list = getTodaysList();
+      const count = list.length;
+      $('todayCount').textContent = count ? (count+" birthday(s) today") : 'No birthdays today';
+      const rows = list.map(r=> (
+        `<tr><td class="cap">${r.Name}</td><td class="cap">${r.Surname}</td><td>${r.Phone}</td><td>${r.Day}-${r.Month}-${r.Year}</td><td>${calcAge(Number(r.Day), r.Month, Number(r.Year))}</td></tr>`
+      )).join("");
+      $('todayTable').innerHTML = `<table><thead><tr><th>Name</th><th>Surname</th><th>Phone</th><th>DOB</th><th>Age</th></tr></thead><tbody>${rows || '<tr><td colspan="5">—</td></tr>'}</tbody></table>`;
+    }
+
+    // ---------- Add / Update ----------
+    $('saveBtn').addEventListener('click', ()=>{
+      const errs = validate();
+      if(errs.length){ status.textContent = '⚠️ Check: '+errs.join(', '); status.className='err'; return; }
+      const record = {
+        Name: capWords(fname.value),
+        Surname: capWords(lname.value),
+        Phone: trim(phone.value),
+        Day: String(Number(day.value)),
+        Month: monthSel.value,
+        Year: String(Number(year.value))
+      };
+      if(editIndex>-1){ data[editIndex]=record; status.textContent='Updated'; }
+      else { data.push(record); status.textContent='Saved'; }
+      saveToStorage(data); clearForm(); renderToday();
+    });
+
+    $('resetBtn').addEventListener('click', clearForm);
+
+    // ---------- Open Birthday File ----------
+    $('loadBtn').addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', (ev)=>{
+      const file = ev.target.files[0]; if(!file) return;
+      masterFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+        data = rows.map(r=>({
+          Name: capWords(r.Name||''),
+          Surname: capWords(r.Surname||''),
+          Phone: String(r.Phone||''),
+          Day: String(r.Day||''),
+          Month: String(r.Month||''),
+          Year: String(r.Year||'')
+        })).filter(r=> r.Name||r.Surname||r.Phone);
+        saveToStorage(data);
+        clearForm();
+        renderToday();
+        $('summary').textContent = `${data.length} total record(s).`;
+      };
+      reader.readAsArrayBuffer(file);
+      ev.target.value='';
+    });
+
+    // ---------- Save Birthday File (xlsx) ----------
+    $('exportAllBtn').addEventListener('click', ()=>{
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(data, {header:['Name','Surname','Phone','Day','Month','Year']});
+
+      // Force phone column as text
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for(let R=range.s.r+1; R<=range.e.r; ++R){
+        const addr = XLSX.utils.encode_cell({r:R,c:2});
+        if(ws[addr]) ws[addr].t = 's';
+      }
+      XLSX.utils.book_append_sheet(wb, ws, 'Master');
+
+      // Filename: Birthday_Reminder_DD-MMM_HH-MM.xlsx
+      const now = new Date();
+      const dd  = String(now.getDate()).padStart(2,'0');
+      const mmm = months[now.getMonth()];
+      const hh  = String(now.getHours()).padStart(2,'0');
+      const mm  = String(now.getMinutes()).padStart(2,'0');
+      const fname = `Birthday_Reminder_${dd}-${mmm}_${hh}-${mm}.xlsx`;
+
+      XLSX.writeFile(wb, fname);
+    });
+
+    // ---------- Send (PDF export of today's) ----------
+    function exportTodayPDF(){
+      const list = getTodaysList();
+      const t = new Date();
+      const jsPDFNS = window.jspdf; // UMD exposes window.jspdf.jsPDF
+      if(!jsPDFNS || !jsPDFNS.jsPDF){
+        alert('PDF library failed to load. Please check your internet connection.');
+        return;
+      }
+      const doc = new jsPDFNS.jsPDF({unit:'pt', format:'a4'});
+      const title = `Today's Birthdays (${list.length})`;
+      doc.setFontSize(16); doc.text(title, 40, 40);
+
+      const head = [['Name','Surname','Phone','DOB','Age']];
+      const body = list.length ? list.map(r=>[
+        r.Name, r.Surname, r.Phone, `${r.Day}-${r.Month}-${r.Year}`,
+        `${calcAge(Number(r.Day), r.Month, Number(r.Year))||''}`
+      ]) : [['—','—','—','—','—']];
+
+      if (doc.autoTable){
+        doc.autoTable({ head, body, startY: 60, styles:{fontSize:11}, headStyles:{fillColor:[30,41,59]} });
+      } else {
+        let y=60; body.forEach(row=>{ doc.text(row.join(' | '), 40, y); y+=16; });
+      }
+
+      const y=t.getFullYear(), mo=String(t.getMonth()+1).padStart(2,'0'), d=String(t.getDate()).padStart(2,'0');
+      doc.save(`Todays_Birthdays_${y}-${mo}-${d}.pdf`);
+    }
+    $('exportTodayBtn').addEventListener('click', exportTodayPDF);
+
+    // ---------- initial paint ----------
+    renderToday();
+  </script>
+</body>
+</html>
