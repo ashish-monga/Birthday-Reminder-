@@ -59,21 +59,21 @@
           <div class="row">
             <div>
               <label for="firstName">Name</label>
-              <input id="firstName" placeholder="e.g., Riya" />
+              <input id="firstName" placeholder="e.g., Tom" />
             </div>
             <div>
               <label for="lastName">Surname</label>
-              <input id="lastName" placeholder="e.g., Sharma" />
+              <input id="lastName" placeholder="e.g., Cruise" />
             </div>
           </div>
           <div>
             <label for="phone">Phone Number</label>
-            <input id="phone" placeholder="e.g., +91 98765 43210" />
+            <input id="phone" placeholder="e.g., +91 98765 43210 or 0" />
           </div>
-          <!-- NEW: Email field just below phone (same styling/colors) -->
+          <!-- Email field just below phone -->
           <div>
             <label for="email">Email (optional)</label>
-            <input id="email" placeholder="e.g., riya@example.com or 0" />
+            <input id="email" placeholder="e.g., ashish@example.com or 0" />
           </div>
 
           <div class="row3">
@@ -107,7 +107,7 @@
         </div>
       </section>
 
-      <!-- RIGHT: Quick Actions -->
+      <!-- RIGHT: Quick Actions (layout unchanged) -->
       <section class="card">
         <h2>📅 Quick Actions</h2>
         <div class="content">
@@ -115,13 +115,14 @@
             <button id="loadBtn" class="btn equal">Open Birthday File</button>
             <button id="exportAllBtn" class="btn equal">Save Birthday File</button>
             <button id="exportTodayBtn" class="btn wide">Send</button>
+            <!-- NEW: Monthly Reminder View button (wide, below Send) -->
+            <button id="monthBtn" class="btn wide">Monthly Reminder View</button>
           </div>
           <div id="summary" class="muted"></div>
           <input id="fileInput" type="file" accept=".xlsx,.xls" style="display:none" />
           <div class="infobox">
             💡 <strong>Why wishing birthdays matters:</strong> remembering and reaching out on someone’s special day strengthens trust,
-            increases positive feelings, and opens the door for warm conversations. Teams that acknowledge birthdays report higher
-            engagement; families and friends who do it consistently feel more connected. Even a short wish can turn an ordinary day
+            increases positive feelings, and opens the door for warm conversations. Even a short wish can turn an ordinary day
             into a meaningful moment — tiny effort, big goodwill.
           </div>
         </div>
@@ -179,7 +180,6 @@
     function validEmailOrZero(s){
       const t = String(s||'').trim();
       if (t === '' || t === '0') return true; // empty or '0' allowed
-      // very light check (no error even if not perfect)
       return t.includes('@') && t.includes('.');
     }
     function calcAge(d, mStr, y){ if(!d||!mStr||!y) return ""; const m = parseMonthIndex(mStr); if(m<0) return ""; const today = new Date(); const birth = new Date(Number(y), m, Number(d)); if(isNaN(birth.getTime())) return ""; let age = today.getFullYear() - birth.getFullYear(); const md = today.getMonth() - m; const dd = today.getDate() - d; if(md<0 || (md===0 && dd<0)) age--; return age>=0? String(age):""; }
@@ -225,6 +225,19 @@
       const list = getTodaysList();
       const count = list.length;
       $('todayCount').textContent = count ? (count+" birthday(s) today") : 'No birthdays today';
+      const rows = list.map(r=> (
+        `<tr><td class="cap">${r.Name}</td><td class="cap">${r.Surname}</td><td>${r.Phone}</td><td>${r.Day}-${r.Month}-${r.Year}</td><td>${calcAge(Number(r.Day), r.Month, Number(r.Year))}</td></tr>`
+      )).join("");
+      $('todayTable').innerHTML = `<table><thead><tr><th>Name</th><th>Surname</th><th>Phone</th><th>DOB</th><th>Age</th></tr></thead><tbody>${rows || '<tr><td colspan="5">—</td></tr>'}</tbody></table>`;
+    }
+
+    // NEW: render this month's birthdays in the same bottom box
+    function renderMonth(){
+      const t = new Date();
+      const m = t.getMonth();
+      const list = data.filter(r => parseMonthIndex(r.Month) == m);
+      const count = list.length;
+      $('todayCount').textContent = count ? (count+" birthday(s) this month") : 'No birthdays this month';
       const rows = list.map(r=> (
         `<tr><td class="cap">${r.Name}</td><td class="cap">${r.Surname}</td><td>${r.Phone}</td><td>${r.Day}-${r.Month}-${r.Year}</td><td>${calcAge(Number(r.Day), r.Month, Number(r.Year))}</td></tr>`
       )).join("");
@@ -287,7 +300,6 @@
       // Force Phone & Email columns as text
       const range = XLSX.utils.decode_range(ws['!ref']);
       for(let R=range.s.r+1; R<=range.e.r; ++R){
-        // c:0 Name, 1 Surname, 2 Phone, 3 Email, 4 Day, 5 Month, 6 Year
         const phoneCell = XLSX.utils.encode_cell({r:R,c:2});
         const emailCell = XLSX.utils.encode_cell({r:R,c:3});
         if(ws[phoneCell]) ws[phoneCell].t = 's';
@@ -335,6 +347,9 @@
       doc.save(`Todays_Birthdays_${y}-${mo}-${d}.pdf`);
     }
     $('exportTodayBtn').addEventListener('click', exportTodayPDF);
+
+    // NEW: Monthly view button wiring
+    $('monthBtn').addEventListener('click', renderMonth);
 
     // ---------- initial paint ----------
     renderToday();
